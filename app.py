@@ -8,11 +8,6 @@ import sys # <-- Import sys to exit on failure
 import keyboard
 from ultralytics import YOLO
 
-# load model
-model = YOLO("detect_enemy.pt")
-model_threshold = 0.6
-print("detection model loaded")
-
 def findWindow(window_name="BlueStacks App Player"):
     """Finds the window and returns its coordinates and an mss instance."""
     print(f"Attempting to find window: '{window_name}'...")
@@ -198,7 +193,7 @@ if button_positions is None:
 # --- 1. SET UP YOUR MODEL & CLASSES ---
 try:
     model = YOLO("detect_enemy.pt")
-    model_threshold = 0.6
+    model_threshold = 0.5
     print("detection model loaded")
 except Exception as e:
     print(f"[ERROR] Could not load model 'detect_enemy.pt': {e}")
@@ -223,12 +218,14 @@ DANGER_ZONE_BUFFER = 30  # e.g., 30 pixels
 # (Enemies further than this will be ignored)
 MAX_DANGER_DISTANCE = 250 # e.g., 250 pixels
 
-# What key do you hold to run?
-RUN_KEY = 'shift' # <-- UPDATE THIS if it's a different key
-
 # Default player position (fallback in case player is not detected)
 default_player_x = windowframe["width"] // 2
 current_player_x = default_player_x
+
+cv2.namedWindow("Bot Debug View", cv2.WINDOW_NORMAL)
+# Resize and position the debug window (you can change these numbers)   
+cv2.resizeWindow("Bot Debug View", windowframe["width"] // 2, windowframe["height"] // 2)
+cv2.moveWindow("Bot Debug View", windowframe["left"] + windowframe["width"], windowframe["top"])
 
 print("\n--- Bot is RUNNING --- Press 'q' in this terminal to stop.")
 print(f"Bot will look for player class: '{PLAYER_CLASS_NAME}'")
@@ -237,7 +234,6 @@ print(f"Danger zone set to: {DANGER_ZONE_BUFFER}px to {MAX_DANGER_DISTANCE}px fr
 # --- 3. OPTIMIZED MAIN LOOP ---
 while True:
     if keyboard.is_pressed('q'):
-        pyautogui.keyUp(RUN_KEY) 
         print("Quitting...")
         break
 
@@ -245,6 +241,11 @@ while True:
     img = np.array(sct.grab(windowframe))
     frame_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
     
+    debug_frame = frame_bgr.copy()
+    # Get the height of the frame for drawing
+    h, w, _ = debug_frame.shape
+
+
     # Run YOLOv8 detection ONCE on the full frame
     results = model(frame_bgr, conf=model_threshold, verbose=False, stream=True)
 
@@ -261,26 +262,38 @@ while True:
 
     # --- 5. PASS 1: Find the Player (as you requested) ---
     # We loop through all detections to find the player first
-    for box in detections:
-        try:
-            cls_id = int(box.cls[0])
-            label = model.names[cls_id]
+    # for box in detections:
+    #     try:
+    #         cls_id = int(box.cls[0])
+    #         label = model.names[cls_id]
 
-            if label == PLAYER_CLASS_NAME:
-                x1, y1, x2, y2 = box.xyxy[0]
-                current_player_x = (x1 + x2) / 2 # Get player's center X
-                break # Found the player, stop this loop
-        except:
-            continue # Ignore bad detections
+    #         if label == PLAYER_CLASS_NAME:
+    #             x1, y1, x2, y2 = box.xyxy[0]
+    #             current_player_x = (x1 + x2) / 2 # Get player's center X
+                
+    #             # --- NEW: Draw GREEN box on the duck ---
+    #             pt1 = (int(x1), int(y1))
+    #             pt2 = (int(x2), int(y2))
+    #             cv2.rectangle(debug_frame, pt1, pt2, (0, 255, 0), 2)
+    #             cv2.putText(debug_frame, "PLAYER", (pt1[0], pt1[1] - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    #             print("found duck class")
+    #             break # Found the player, stop this loop
+    #     except:
+    #         continue # Ignore bad detections
 
     # --- 6. PASS 2: Find Enemies in the *New Smaller Zones* ---
     
     # Define the dynamic zones based on the player's *current* position
-    left_danger_zone_start = current_player_x - MAX_DANGER_DISTANCE
-    left_danger_zone_end = current_player_x - DANGER_ZONE_BUFFER
+    left_danger_zone_start = int(current_player_x - MAX_DANGER_DISTANCE)
+    left_danger_zone_end = int(current_player_x - DANGER_ZONE_BUFFER)
     
-    right_danger_zone_start = current_player_x + DANGER_ZONE_BUFFER
-    right_danger_zone_end = current_player_x + MAX_DANGER_DISTANCE
+    right_danger_zone_start = int(current_player_x + DANGER_ZONE_BUFFER)
+    right_danger_zone_end = int(current_player_x + MAX_DANGER_DISTANCE)
+    
+    # Draw LEFT zone (yellow)
+    cv2.rectangle(debug_frame, (left_danger_zone_start, 0), (left_danger_zone_end, h), (0, 255, 255), 2)
+    # Draw RIGHT zone (yellow)
+    cv2.rectangle(debug_frame, (right_danger_zone_start, 0), (right_danger_zone_end, h), (0, 255, 255), 2)
 
     for box in detections:
         try:
@@ -303,6 +316,8 @@ while True:
         # Check LEFT Zone
         if left_danger_zone_start < enemy_center_x < left_danger_zone_end:
             enemy_detected_in_zone = True
+            # --- NEW: Draw RED box on the enemy ---
+            cv2.rectangle(debug_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
             if label == "yellowbottle" or label== "left bunny":
                 pyautogui.click(button_positions["pl"])
                 print(f"Left Zone: Detected {label} -> click pl")
@@ -313,12 +328,14 @@ while True:
                 pyautogui.click(button_positions["kl"])
                 print(f"Left Zone: Detected {label} -> click kl")
             
-            time.sleep(0.05) # Small delay after clicking
+            # time.sleep(0.03) # Small delay after clicking
             break # Handle one enemy at a time
 
         # Check RIGHT Zone
-        elif right_danger_zone_start < enemy_center_x < right_danger_zone_end:
+        if right_danger_zone_start < enemy_center_x < right_danger_zone_end:
             enemy_detected_in_zone = True
+            # --- NEW: Draw RED box on the enemy ---
+            cv2.rectangle(debug_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
             if label == "yellowbottle" or label== "left bunny":
                 pyautogui.click(button_positions["pr"])
                 print(f"Right Zone: Detected {label} -> click pr")
@@ -329,14 +346,17 @@ while True:
                 pyautogui.click(button_positions["kr"])
                 print(f"Right Zone: Detected {label} -> click kr")
             
-            time.sleep(0.05)
+            # time.sleep(0.03) # Small delay after clicking
             break 
-
-    # --- 8. Handle "Hold Run" (Idle Action) ---
-    if enemy_detected_in_zone:
-        pyautogui.keyUp(RUN_KEY) # An enemy is here, stop running
-    else:
-        pyautogui.keyDown(RUN_KEY) # No enemies, hold run
+    # --- NEW: Show the debug frame ---
+    cv2.imshow("Bot Debug View", debug_frame)
     
+    # --- NEW: This is ESSENTIAL for cv2.imshow() to work ---
+    cv2.waitKey(1)
+
     # A tiny sleep at the end of the loop to prevent 100% CPU load
-    time.sleep(0.03)
+    time.sleep(0.02)
+
+# --- NEW: Clean up the window when the loop breaks ---
+cv2.destroyAllWindows()
+print("Bot stopped.")
