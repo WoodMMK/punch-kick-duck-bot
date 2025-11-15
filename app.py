@@ -10,8 +10,8 @@ from ultralytics import YOLO
 
 # --- Load Model (do this ONCE) ---
 try:
-    model = YOLO("detect_enemy.pt")
-    model_threshold = 0.5
+    model = YOLO("detect_enemy_2.pt")
+    model_threshold = 0.4
     print("detection model loaded")
 except Exception as e:
     print(f"[FATAL ERROR] Could not load model 'detect_enemy.pt': {e}")
@@ -203,7 +203,7 @@ if button_positions is None:
 
 # --- 2. DEFINE YOUR DYNAMIC ZONES & PLAYER ---
 PLAYER_CLASS_NAME = "duck" 
-DANGER_ZONE_BUFFER = 30  
+DANGER_ZONE_BUFFER = 20  
 MAX_DANGER_DISTANCE = 250 
 RUN_KEY = 'shift' # <--- UPDATE THIS if it's a different key
 default_player_x = windowframe["width"] // 2
@@ -215,9 +215,9 @@ last_attack_timestamp_right = 0
 # ---
 
 # --- REMOVED: Create the debug window ---
-# cv2.namedWindow("Bot Debug View", cv2.WINDOW_NORMAL)
-# cv2.resizeWindow("Bot Debug View", windowframe["width"] // 2, windowframe["height"] // 2)
-# cv2.moveWindow("Bot Debug View", windowframe["left"] + windowframe["width"], windowframe["top"])
+cv2.namedWindow("Bot Debug View", cv2.WINDOW_NORMAL)
+cv2.resizeWindow("Bot Debug View", windowframe["width"] // 2, windowframe["height"] // 2)
+cv2.moveWindow("Bot Debug View", windowframe["left"] + windowframe["width"], windowframe["top"])
 
 print("\n--- Bot is RUNNING --- Press 'q' in this terminal to stop.")
 print(f"Bot will look for player class: '{PLAYER_CLASS_NAME}'")
@@ -237,8 +237,8 @@ while True:
     frame_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
     
     # --- REMOVED: Create a copy of the frame to draw on ---
-    # debug_frame = frame_bgr.copy()
-    # h, w, _ = debug_frame.shape
+    debug_frame = frame_bgr.copy()
+    h, w, _ = debug_frame.shape
 
     # Run YOLOv8 detection ONCE on the full frame
     results = model(frame_bgr, conf=model_threshold, verbose=False, stream=True)
@@ -266,10 +266,10 @@ while True:
                 current_player_x = (x1 + x2) / 2 # Get player's center X
                 
                 # --- REMOVED: Draw GREEN box on the duck ---
-                # pt1 = (int(x1), int(y1))
-                # pt2 = (int(x2), int(y2))
-                # cv2.rectangle(debug_frame, pt1, pt2, (0, 255, 0), 2)
-                # cv2.putText(debug_frame, "PLAYER", (pt1[0], pt1[1] - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                pt1 = (int(x1), int(y1))
+                pt2 = (int(x2), int(y2))
+                cv2.rectangle(debug_frame, pt1, pt2, (0, 255, 0), 2)
+                cv2.putText(debug_frame, "PLAYER", (pt1[0], pt1[1] - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
                 break # Found the player, stop this loop
         except:
             continue # Ignore bad detections
@@ -283,8 +283,8 @@ while True:
     right_danger_zone_end = int(current_player_x + MAX_DANGER_DISTANCE)
     
     # --- REMOVED: Draw danger zones ---
-    # cv2.rectangle(debug_frame, (left_danger_zone_start, 0), (left_danger_zone_end, h), (0, 255, 255), 2)
-    # cv2.rectangle(debug_frame, (right_danger_zone_start, 0), (right_danger_zone_end, h), (0, 255, 255), 2)
+    cv2.rectangle(debug_frame, (left_danger_zone_start, 0), (left_danger_zone_end, h), (0, 255, 255), 2)
+    cv2.rectangle(debug_frame, (right_danger_zone_start, 0), (right_danger_zone_end, h), (0, 255, 255), 2)
 
     # --- 7. NEW: Check Left Side (if not on cooldown) ---
     if current_time - last_attack_timestamp_left > ATTACK_COOLDOWN:
@@ -300,7 +300,7 @@ while True:
             if left_danger_zone_start < enemy_center_x < left_danger_zone_end:
                 enemy_detected_left = True
                 # --- REMOVED: Draw RED box on the enemy ---
-                # cv2.rectangle(debug_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
+                cv2.rectangle(debug_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
                 
                 if label == "yellowbottle" or label== "left bunny":
                     pyautogui.click(button_positions["pl"])
@@ -329,7 +329,7 @@ while True:
             if right_danger_zone_start < enemy_center_x < right_danger_zone_end:
                 enemy_detected_right = True
                 # --- REMOVED: Draw RED box on the enemy ---
-                # cv2.rectangle(debug_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
+                cv2.rectangle(debug_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
 
                 if label == "yellowbottle" or label== "left bunny":
                     pyautogui.click(button_positions["pr"])
@@ -355,15 +355,15 @@ while True:
 
     # --- 9. Show debug frame and manage loop speed ---
     # --- REMOVED: Show the debug frame ---
-    # cv2.imshow("Bot Debug View", debug_frame)
-    # if cv2.waitKey(1) & 0xFF == ord('q'): # Allow closing window to quit
-    #     break
+    cv2.imshow("Bot Debug View", debug_frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'): # Allow closing window to quit
+        break
     
     # --- RE-ADD: Small sleep, since cv2.waitKey(1) was removed ---
     time.sleep(0.01)
 
 # --- Clean up ---
 # --- REMOVED: Destroy the debug window ---
-# cv2.destroyAllWindows()
+cv2.destroyAllWindows()
 pyautogui.keyUp(RUN_KEY) # Ensure 'run' key is released on exit
 print("Bot stopped.")
