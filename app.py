@@ -8,10 +8,17 @@ import sys # <-- Import sys to exit on failure
 import keyboard
 from ultralytics import YOLO
 
-# --- Load Model (do this ONCE) ---
+# --- Load Model ---
 try:
-    model = YOLO("detect_enemy_1")
-    """Finds the window and returns its coordinates and an mss instance."""
+    model = YOLO("detect_enemy_1.pt")
+    model_threshold = 0.4
+    print("detection model loaded")
+except Exception as e:
+    print(f"[FATAL ERROR] Could not load model 'detect_enemy.pt': {e}")
+    sys.exit()
+
+def findWindow(window_name="BlueStacks App Player"):
+    """Finds the window"""
     print(f"Attempting to find window: '{window_name}'...")
     hwnd = win32gui.FindWindow(None, window_name)
     if hwnd == 0:
@@ -29,6 +36,7 @@ try:
     sct_instance = mss.mss()
     print(f"Window found at ({x}, {y}) with size ({w}x{h})")
     return sct_instance, window_frame
+
 
 def Cannyimg(img):
     """Converts an image to Canny edges."""
@@ -210,7 +218,7 @@ last_attack_timestamp_right = 0
 # --- REMOVED: Create the debug window ---
 cv2.namedWindow("Bot Debug View", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Bot Debug View", windowframe["width"] // 2, windowframe["height"] // 2)
-cv2.moveWindow("Bot Debug View", windowframe["left"] + windowframe["width"], windowframe["top"])
+cv2.moveWindow("Bot Debug View", windowframe["left"], windowframe["top"] + windowframe["height"] + 10)
 
 print("\n--- Bot is RUNNING --- Press 'q' in this terminal to stop.")
 print(f"Bot will look for player class: '{PLAYER_CLASS_NAME}'")
