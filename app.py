@@ -10,14 +10,7 @@ from ultralytics import YOLO
 
 # --- Load Model (do this ONCE) ---
 try:
-    model = YOLO("detect_enemy_2.pt")
-    model_threshold = 0.4
-    print("detection model loaded")
-except Exception as e:
-    print(f"[FATAL ERROR] Could not load model 'detect_enemy.pt': {e}")
-    sys.exit()
-
-def findWindow(window_name="BlueStacks App Player"):
+    model = YOLO("detect_enemy_1")
     """Finds the window and returns its coordinates and an mss instance."""
     print(f"Attempting to find window: '{window_name}'...")
     hwnd = win32gui.FindWindow(None, window_name)
