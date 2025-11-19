@@ -10,7 +10,7 @@ from ultralytics import YOLO
 
 # --- Load Model ---
 try:
-    model = YOLO("detect_enemy_6.pt")
+    model = YOLO("detect_enemy_8.pt")
     model_threshold = 0.3
     print("detection model loaded")
 except Exception as e:
@@ -205,7 +205,7 @@ if button_positions is None:
 # --- 2. DEFINE YOUR DYNAMIC ZONES & PLAYER ---
 PLAYER_CLASS_NAME = "duck" 
 DANGER_ZONE_BUFFER = 20  
-MAX_DANGER_DISTANCE = 250 
+MAX_DANGER_DISTANCE = 230 
 RUN_KEY = 'shift' # <--- UPDATE THIS if it's a different key
 default_player_x = windowframe["width"] // 2
 
