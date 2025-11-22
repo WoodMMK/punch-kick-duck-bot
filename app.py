@@ -4,13 +4,13 @@ import pyautogui
 import mss
 import time
 import win32gui
-import sys # <-- Import sys to exit on failure
+import sys # <-- to exit on failure
 import keyboard
 from ultralytics import YOLO
 
 # --- Load Model ---
 try:
-    model = YOLO("detect_enemy_v10.pt")
+    model = YOLO("detect_enemy_12.pt")
     model_threshold = 0.3
     print("detection model loaded")
 except Exception as e:
@@ -42,7 +42,7 @@ def Cannyimg(img):
     """Converts an image to Canny edges."""
     # Check if image has alpha channel (4 channels)
     if img.shape[2] == 4:
-        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR) # Convert to 3-channel BGR
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
         
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     img_blur = cv2.GaussianBlur(img_gray, (5, 5), 0)
@@ -62,23 +62,18 @@ def findPosition(template_edges, screenshot_edges, threshold):
     
     return None 
 
-# --- 4. Calibrate All Buttons (NEW Anchor Version) ---
+# Calibrate All Buttons
 def findButton(sct, windowframe):
     """
     Finds the 2 middle buttons (hkl, hkr) and calculates the other 4.
     """
     print("\n--- Starting Button Calibration (Anchor Mode) ---")
-    threshold = 0.4 # Start with 0.4 for edge matching
-
-    # --- *** YOU MUST UPDATE THESE VALUES *** ---
-    # Open a screenshot in MS Paint and measure the pixel distance
-    # from the CENTER of the high-kick button to the CENTER of the others.
+    threshold = 0.5
     
     # Offset from high-kick (middle) to punch (top)
-    OFFSET_Y_PUNCH = -110 # <--- PUT YOUR NUMBER HERE
+    OFFSET_Y_PUNCH = -110
     # Offset from high-kick (middle) to low-kick (bottom)
-    OFFSET_Y_KICK = 110  # <--- PUT YOUR NUMBER HERE
-    # --- *** ---
+    OFFSET_Y_KICK = 110
 
     # Take one screenshot for calibration
     try:
@@ -142,7 +137,7 @@ def findButton(sct, windowframe):
         print("[CRITICAL] Calibration failed. Bot cannot start.")
         return None
 
-    # --- NEW: Calculate the other 4 buttons ---
+    # Calculate the other 4 buttons
     print("Calculating remaining button positions...")
     try:
         # Get the anchor positions
@@ -177,41 +172,34 @@ def findButton(sct, windowframe):
     for key, (x, y) in button_positions_relative.items():
         button_positions_absolute[key] = (window_x + x, window_y + y)
     
-    # --- NEW DEBUG PRINT ---
     print("\n--- Final Button Coordinates (Absolute) ---")
     for key, pos in button_positions_absolute.items():
         print(f"  {key}: {pos}")
-    # --- END DEBUG PRINT ---
         
     print("--- Calibration SUCCESSFUL ---")
     return button_positions_absolute
 
-# --- MAIN SCRIPT EXECUTION (OPTIMIZED WITH COOLDOWNS) ---
+# MAIN SCRIPT EXECUTION
 print("starting...")
 sct, windowframe = findWindow()
 
 if sct is None:
     sys.exit() # Exit if window not found
 
-# Run calibration ONCE at the start
+# Run calibration
 button_positions = findButton(sct, windowframe)
 
 if button_positions is None:
     sys.exit() # Exit if calibration failed
 
-# --- 1. SET UP YOUR MODEL & CLASSES ---
-# (Already loaded model at the top)
-
-# --- 2. DEFINE YOUR DYNAMIC ZONES & PLAYER ---
+# DEFINE DYNAMIC ZONES & PLAYER
 PLAYER_CLASS_NAME = "duck" 
 DANGER_ZONE_BUFFER = 20  
 MAX_DANGER_DISTANCE = 230 
-RUN_KEY = 'shift' # <--- UPDATE THIS if it's a different key
+RUN_KEY = 'shift'
 default_player_x = windowframe["width"] // 2
 
-# ---
-
-# --- REMOVED: Create the debug window ---
+# Create the debug window ---
 cv2.namedWindow("Bot Debug View", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Bot Debug View", windowframe["width"] // 2, windowframe["height"] // 2)
 cv2.moveWindow("Bot Debug View", windowframe["left"], windowframe["top"] + windowframe["height"] + 10)
@@ -220,7 +208,7 @@ print("\n--- Bot is RUNNING --- Press 'q' in this terminal to stop.")
 print(f"Bot will look for player class: '{PLAYER_CLASS_NAME}'")
 print(f"Danger zone set to: {DANGER_ZONE_BUFFER}px to {MAX_DANGER_DISTANCE}px from player.")
 
-# --- 3. OPTIMIZED MAIN LOOP ---
+# MAIN LOOP
 while True:
     if keyboard.is_pressed('q'):
         pyautogui.keyUp(RUN_KEY) 
@@ -229,11 +217,11 @@ while True:
 
     current_time = time.time() # Get time at the start of the loop
         
-    # --- 4. GRAB ONCE, PREDICT ONCE ---
+    # GRAB ONCE, PREDICT ONCE
     img = np.array(sct.grab(windowframe))
     frame_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
 
-    # --- REMOVED: Create a copy of the frame to draw on ---
+    # Create a copy of the frame to draw on
     debug_frame = frame_bgr.copy()
     h, w, _ = debug_frame.shape
 
@@ -250,26 +238,7 @@ while True:
         print(f"Error processing results: {e}")
         continue # Skip this frame
 
-    # # --- 5. PASS 1: Find the Player (This is UNCOMMENTED and fixed) ---
-    # for box in detections:
-    #     try:
-    #         cls_id = int(box.cls[0])
-    #         label = model.names[cls_id]
-
-    #         if label == PLAYER_CLASS_NAME:
-    #             x1, y1, x2, y2 = box.xyxy[0]
-    #             current_player_x = (x1 + x2) / 2 # Get player's center X
-                
-    #             # --- REMOVED: Draw GREEN box on the duck ---
-    #             pt1 = (int(x1), int(y1))
-    #             pt2 = (int(x2), int(y2))
-    #             cv2.rectangle(debug_frame, pt1, pt2, (0, 255, 0), 2)
-    #             cv2.putText(debug_frame, "PLAYER", (pt1[0], pt1[1] - 10),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-    #             break # Found the player, stop this loop
-    #     except:
-    #         continue # Ignore bad detections
-
-    # --- 6. PASS 2: Find Enemies in the *New Smaller Zones* ---
+    # Find Enemies in the *New Smaller Zones* ---
     
     # Define the dynamic zones based on the player's *current* position
     left_danger_zone_start = int(current_player_x - MAX_DANGER_DISTANCE)
@@ -277,11 +246,11 @@ while True:
     right_danger_zone_start = int(current_player_x + DANGER_ZONE_BUFFER)
     right_danger_zone_end = int(current_player_x + MAX_DANGER_DISTANCE)
     
-    # --- REMOVED: Draw danger zones ---
+    #  Draw danger zones
     cv2.rectangle(debug_frame, (left_danger_zone_start, 0), (left_danger_zone_end, h), (0, 255, 255), 2)
     cv2.rectangle(debug_frame, (right_danger_zone_start, 0), (right_danger_zone_end, h), (0, 255, 255), 2)
 
-    # --- 7. NEW: Check Left Side (if not on cooldown) ---
+    # Check Left Side (if not on cooldown)
     for box in detections:
         try:
             cls_id = int(box.cls[0]); label = model.names[cls_id]; conf = float(box.conf[0])
@@ -292,7 +261,7 @@ while True:
 
         # Check if enemy is in the LEFT zone
         if left_danger_zone_start < enemy_center_x < left_danger_zone_end:
-            # --- REMOVED: Draw RED box on the enemy ---
+            # Draw RED box on the enemy
             cv2.rectangle(debug_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
             
             if label == "yellowbottle" or label== "left bunny":
@@ -305,7 +274,7 @@ while True:
                 pyautogui.click(button_positions["kl"])
                 print(f"Left Zone: Detected {label} -> click kl")
     
-    # --- NEW: Check Right Side (if not on cooldown) ---
+    # Check Right Side (if not on cooldown)
     for box in detections:
         try:
             cls_id = int(box.cls[0]); label = model.names[cls_id]; conf = float(box.conf[0])
@@ -319,7 +288,7 @@ while True:
             # --- REMOVED: Draw RED box on the enemy ---
             cv2.rectangle(debug_frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 2)
 
-            if label == "yellowbottle" or label== "left bunny":
+            if label == "yellow bottle" or label== "left bunny":
                 pyautogui.click(button_positions["pr"])
                 print(f"Right Zone: Detected {label} -> click pr")
             elif label == "cart" or label =="pig" or label== "redbottle":
@@ -329,17 +298,15 @@ while True:
                 pyautogui.click(button_positions["kr"])
                 print(f"Right Zone: Detected {label} -> click kr")
 
-    # --- 9. Show debug frame and manage loop speed ---
-    # --- REMOVED: Show the debug frame ---
+    # Show debug frame and manage loop speed
     cv2.imshow("Bot Debug View", debug_frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'): # Allow closing window to quit
+    if cv2.waitKey(1) & 0xFF == ord('q'): # if user presses 'q', allow to quit
         break
     
-    # --- RE-ADD: Small sleep, since cv2.waitKey(1) was removed ---
+    # Small sleep
     time.sleep(0.01)
 
-# --- Clean up ---
-# --- REMOVED: Destroy the debug window ---
+# Clean up,, Destroy the debug window
 cv2.destroyAllWindows()
 pyautogui.keyUp(RUN_KEY) # Ensure 'run' key is released on exit
 print("Bot stopped.")
