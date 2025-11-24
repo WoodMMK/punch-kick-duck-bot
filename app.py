@@ -68,13 +68,16 @@ def findButton(sct, windowframe):
     Finds the 2 middle buttons (hkl, hkr) and calculates the other 4.
     """
     print("\n--- Starting Button Calibration (Anchor Mode) ---")
+    print("window frame : ", windowframe)
     threshold = 0.5
     
     # Offset from high-kick (middle) to punch (top)
-    OFFSET_Y_PUNCH = -110
+    window_height = windowframe.get('height')
+    OFFSET_Y_PUNCH = -1 * (0.2 * window_height)
+    print('off punch : ', OFFSET_Y_PUNCH)
     # Offset from high-kick (middle) to low-kick (bottom)
-    OFFSET_Y_KICK = 110
-
+    OFFSET_Y_KICK = (0.2 * window_height)
+    print('off kick : ',OFFSET_Y_KICK)
     # Take one screenshot for calibration
     try:
         screenshot = np.array(sct.grab(windowframe))
