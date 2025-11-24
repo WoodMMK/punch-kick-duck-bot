@@ -10,7 +10,7 @@ from ultralytics import YOLO
 
 # --- Load Model ---
 try:
-    model = YOLO("model/detect_enemy_14.pt")
+    model = YOLO("model/detect_enemy_15.pt")
     model_threshold = 0.3
     print("detection model loaded")
 except Exception as e:
